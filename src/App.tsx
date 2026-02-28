@@ -42,6 +42,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
+  const [ingestingLatest, setIngestingLatest] = useState(false);
   const [recent, setRecent] = useState<RecentResponse | null>(null);
   const [error, setError] = useState('');
   const [lastRun, setLastRun] = useState<Date | null>(null);
@@ -107,11 +108,15 @@ export default function App() {
     checkStatus();
   }, [hasPassword, password]);
 
-  const ingest = async () => {
+  const ingest = async (sinceMs?: number) => {
+    const params = new URLSearchParams();
+    if (sinceMs) params.set('sinceMs', sinceMs.toString());
+    const qs = params.toString();
+
     setIngesting(true);
     setError('');
     try {
-      const res = await fetch(`${apiBase}/api/ingest?minutes=${minutes}`, {
+      const res = await fetch(`${apiBase}/api/ingest${qs ? `?${qs}` : ''}`, {
         method: 'POST',
         headers: password ? { 'x-app-password': password } : {}
       });

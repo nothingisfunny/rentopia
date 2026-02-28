@@ -62,8 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!backfillSecret || req.query.secret !== backfillSecret) {
       res.status(401).json({ error: 'Unauthorized backfill' });
       return;
-     }
-   }
+    }
+  }
+  const sinceMs = req.query.sinceMs ? Number(req.query.sinceMs) : null;
+  const sinceDate = sinceMs ? new Date(sinceMs) : null;
   const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
 
   if (!isBackfill) {
@@ -104,7 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const gmail = google.gmail({ version: 'v1', auth: oauth });
-    const query = 'from:(alerts@alerts.craigslist.org)';
+    const clauses = ['from:(alerts@alerts.craigslist.org)'];
+    if (sinceDate && !isNaN(sinceDate.getTime())) {
+      const yyyy = sinceDate.getUTCFullYear();
+      const mm = String(sinceDate.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(sinceDate.getUTCDate()).padStart(2, '0');
+      clauses.push(`after:${yyyy}/${mm}/${dd}`);
+    }
+    const query = clauses.join(' ');
     let pageToken: string | undefined = undefined;
     const messages: { id: string }[] = [];
     const maxPages = isBackfill ? 20 : 1; // up to ~1000 messages in backfill; otherwise just newest batch
