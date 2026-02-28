@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { google } from 'googleapis';
-import prisma from '../lib/prisma.js';
-import { getOAuthClient, getProfileEmail } from '../lib/gmail.js';
-import { applyCors } from '../lib/cors.js';
+import prisma from '../../lib/prisma.js';
+import { getOAuthClient, getProfileEmail } from '../../lib/gmail.js';
+import { applyCors } from '../../lib/cors.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res, ['GET'])) return;
@@ -41,13 +40,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    const appOrigin = process.env.APP_ORIGIN || '/';
+    const appOrigin = process.env.APP_ORIGIN?.split(',')[0] || '/';
     const redirectTo = `${appOrigin}?auth=success&email=${encodeURIComponent(email)}`;
     res.writeHead(302, { Location: redirectTo });
     res.end();
   } catch (err) {
     console.error('auth-callback error', err);
-    const appOrigin = process.env.APP_ORIGIN || '/';
+    const appOrigin = process.env.APP_ORIGIN?.split(',')[0] || '/';
     const redirectTo = `${appOrigin}?auth=error`;
     res.writeHead(302, { Location: redirectTo });
     res.end();
