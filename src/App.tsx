@@ -62,13 +62,14 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!connectedEmail) return;
+    if (!connectedEmail || !hasPassword) return;
     fetchRecent();
     const interval = setInterval(fetchRecent, 60_000);
     return () => clearInterval(interval);
-  }, [queryParams, connectedEmail]);
+  }, [queryParams, connectedEmail, hasPassword]);
 
   useEffect(() => {
+    if (!hasPassword) return;
     const checkStatus = async () => {
       setCheckingStatus(true);
       try {
@@ -89,7 +90,7 @@ export default function App() {
       }
     };
     checkStatus();
-  }, []);
+  }, [hasPassword, password]);
 
   const ingest = async () => {
     setIngesting(true);
@@ -112,6 +113,34 @@ export default function App() {
     }
   };
 
+  if (!hasPassword) {
+    return (
+      <div className="container">
+        <div className="card" style={{ maxWidth: 480, margin: '40px auto' }}>
+          <h2>Enter access password</h2>
+          <div className="input-row">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                localStorage.setItem('appPassword', password);
+                setHasPassword(true);
+              }}
+              disabled={!password}
+            >
+              Continue
+            </button>
+          </div>
+          {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div className="header">
@@ -132,29 +161,6 @@ export default function App() {
           </button>
         </div>
       </div>
-      {!hasPassword && (
-        <div className="card" style={{ borderColor: '#f59e0b' }}>
-          <div className="input-row">
-            <input
-              type="password"
-              placeholder="Enter access password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              onClick={() => {
-                localStorage.setItem('appPassword', password);
-                setHasPassword(true);
-                fetchRecent();
-              }}
-              disabled={!password}
-            >
-              Save password
-            </button>
-          </div>
-          <p style={{ color: '#f59e0b' }}>A password is required to view data.</p>
-        </div>
-      )}
 
       {checkingStatus && <div className="card">Checking Gmail connection…</div>}
 
