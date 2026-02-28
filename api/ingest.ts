@@ -57,13 +57,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const minutes = Number(req.query.minutes ?? 60);
+   const isBackfill = String(req.query.backfill || '').toLowerCase() === 'true';
+   const backfillSecret = process.env.BACKFILL_SECRET;
+   if (isBackfill) {
+     if (!backfillSecret || req.query.secret !== backfillSecret) {
+       res.status(401).json({ error: 'Unauthorized backfill' });
+       return;
+     }
+   }
   const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
 
-  try {
-    await enforceRateLimit(ip, 30);
-  } catch (err) {
-    res.status(429).json({ error: (err as Error).message });
-    return;
+  if (!isBackfill) {
+    try {
+      await enforceRateLimit(ip, 30);
+    } catch (err) {
+      res.status(429).json({ error: (err as Error).message });
+      return;
+    }
   }
 
   const token = await prisma.oAuthToken.findFirst({ orderBy: { createdAt: 'desc' } });
@@ -95,13 +105,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const gmail = google.gmail({ version: 'v1', auth: oauth });
-    const list = await gmail.users.messages.list({
-      userId: 'me',
-      q: `newer_than:${minutes}m`,
-      maxResults: 50
-    });
+    let pageToken: string | undefined;
+    const messages: { id: string }[] = [];
+    const maxPages = isBackfill ? 20 : 1; // up to ~1000 messages in backfill
+    for (let page = 0; page < maxPages; page++) {
+      const list = await gmail.users.messages.list({
+        userId: 'me',
+        q: `newer_than:${minutes}m`,
+        maxResults: 50,
+        pageToken
+      });
+      messages.push(...(list.data.messages || []));
+      pageToken = list.data.nextPageToken || undefined;
+      if (!pageToken) break;
+    }
 
-    const messages = list.data.messages || [];
     const scannedMessages = messages.length;
     const ids = messages.map((m) => m.id!).filter(Boolean);
 

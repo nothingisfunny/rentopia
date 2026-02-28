@@ -54,6 +54,10 @@ npm run dev       # Vite on :5173 (proxies /api to :3000 when local)
 
 # Remove all listings (dangerous):
 # DATABASE_URL=... npx prisma db execute --command "TRUNCATE \"ListingEvent\", \"Listing\" RESTART IDENTITY CASCADE;"
+
+# One-time backfill example (bypass rate limit, pages more):
+# curl -X POST "https://<your-app>.vercel.app/api/ingest?minutes=10080&backfill=true&secret=BACKFILL_SECRET" \
+#   -H "x-app-password: APP_PASSWORD"
 ```
 Without `dev:api`, keep `VITE_API_BASE` set so the SPA calls the deployed API instead of localhost to avoid JSON parse errors.
 
@@ -83,8 +87,8 @@ npm run prisma:migrate -- --name init
 ## Ingestion flow
 - `POST /api/ingest?minutes=60`
   - Rate limit: 1 request per 30s per IP (Upstash if configured, otherwise in-memory).
-  - Query params: `minutes` (default 60), `label` (default `apt-alerts`).
-  - Uses the stored refresh token to fetch messages labeled `label` newer than the window.
+  - Query params: `minutes` (default 60), optional `backfill=true&secret=BACKFILL_SECRET` to page through more results (up to ~1000 msgs) and bypass rate limit.
+  - Uses the stored refresh token to fetch messages newer than the window.
   - Fetches each message, extracts all URLs from text/plain and text/html bodies.
   - Canonicalizes URLs (drops utm/fbclid/gclid/etc.), classifies source, dedupes by SHA-256 hash.
   - Upserts `Listing`, inserts `ListingEvent` (unique on emailMessageId+urlHash).
