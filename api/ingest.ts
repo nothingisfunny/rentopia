@@ -104,23 +104,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const gmail = google.gmail({ version: 'v1', auth: oauth });
-    let pageToken: string | undefined;
+    const query = 'from:(alerts@alerts.craigslist.org)';
+    let pageToken: string | undefined = undefined;
     const messages: { id: string }[] = [];
-    const maxPages = isBackfill ? 20 : 1; // up to ~1000 messages in backfill
+    const maxPages = isBackfill ? 20 : 1; // up to ~1000 messages in backfill; otherwise just newest batch
+    const maxResults = isBackfill ? 50 : 5;
+
     for (let page = 0; page < maxPages; page++) {
-      const list = await gmail.users.messages.list({
+      const resList = await gmail.users.messages.list({
         userId: 'me',
-        q: `from:alerts@alerts.craigslist.org`,
-        maxResults: 50,
+        q: query,
+        maxResults,
         pageToken
       });
-      messages.push(...(list.data.messages || []));
-      pageToken = list.data.nextPageToken || undefined;
-      if (!pageToken) break;
+      const batch = resList.data.messages || [];
+      console.log('[ingest] gmail page %s returned %s msgs', page + 1, batch.length);
+      messages.push(...batch);
+      pageToken = resList.data.nextPageToken || undefined;
+      if (!pageToken || !isBackfill) break;
     }
 
     const scannedMessages = messages.length;
-    const ids = messages.map((m) => m.id!).filter(Boolean);
+    const ids = Array.from(new Set(messages.map((m) => m.id!).filter(Boolean)));
 
     console.log('[ingest] minutes=%s messages=%s', minutes, scannedMessages);
 
@@ -169,20 +174,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      const urls = extractUrls(plain, html);
-      extractedUrls += urls.length;
+      // If we have parsed Craigslist anchors, use only those; otherwise fallback to generic URL extraction.
+      const targetUrls = clMap.size
+        ? Array.from(clMap.keys())
+        : extractUrls(plain, html).map((u) => canonicalizeUrl(u)).filter((u): u is string => Boolean(u));
 
-      for (const rawUrl of urls) {
-        const canonical = canonicalizeUrl(rawUrl);
-        if (!canonical) continue;
+      extractedUrls += targetUrls.length;
+
+      for (const canonical of targetUrls) {
         const urlObj = new URL(canonical);
         const source = classifySource(urlObj);
         if (source !== 'craigslist') continue; // only craigslist
         if (!urlObj.pathname.includes('/apa')) continue; // only apts
         const urlHash = hashUrl(canonical);
 
-        const clDetails = source === 'craigslist' ? clMap.get(canonical) : undefined;
-        const { price: subjPrice, title: parsedTitle } = source === 'craigslist' ? parseCraigslistSubject(subject || plain) : { price: null, title: null };
+        const clDetails = clMap.get(canonical);
+        const { price: subjPrice, title: parsedTitle } = parseCraigslistSubject(subject || plain);
         const price = clDetails?.price ?? subjPrice;
         const chosenImage = clDetails?.image || firstImage;
         const chosenTitle = clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
