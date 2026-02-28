@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OAuthToken {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  refreshToken String
+  accessToken  String?
+  expiryDate   BigInt?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Listing {
+  id           String   @id @default(cuid())
+  url          String
+  urlHash      String   @unique
+  source       String
+  title        String?
+  latestSeenAt DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  events       ListingEvent[]
+}
+
+model ListingEvent {
+  id             String   @id @default(cuid())
+  urlHash        String
+  emailMessageId String
+  receivedAt     DateTime
+  from           String?
+  subject        String?
+  snippet        String?
+  source         String
+  listingId      String?
+  listing        Listing? @relation(fields: [listingId], references: [id])
+
+  @@unique([emailMessageId, urlHash])
+  @@index([urlHash])
+}
