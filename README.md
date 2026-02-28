@@ -1,0 +1,1 @@
+Email notification based app for consolidating posted apartment rental listings.
