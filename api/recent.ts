@@ -15,25 +15,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const minutes = Number(req.query.minutes ?? 60);
   const source = (req.query.source as string | undefined) || undefined;
   const q = (req.query.q as string | undefined)?.trim();
+  const page = Math.max(1, Number(req.query.page ?? 1));
+  const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize ?? 20)));
+  const skip = (page - 1) * pageSize;
 
   try {
-    const listings = await prisma.listing.findMany({
-      where: {
-        latestSeenAt: { gte: new Date(Date.now() - minutes * 60 * 1000) },
-        ...(source && source !== 'all' ? { source } : {}),
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { url: { contains: q, mode: 'insensitive' } }
-              ]
-            }
-          : {})
-      },
-      orderBy: { latestSeenAt: 'desc' }
-    });
+    const where = {
+      latestSeenAt: { gte: new Date(Date.now() - minutes * 60 * 1000) },
+      ...(source && source !== 'all' ? { source } : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { url: { contains: q, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    };
 
-    res.status(200).json({ listings, count: listings.length });
+    const [listings, total] = await Promise.all([
+      prisma.listing.findMany({
+        where,
+        orderBy: { latestSeenAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      prisma.listing.count({ where })
+    ]);
+
+    res.status(200).json({
+      listings,
+      count: listings.length,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize))
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

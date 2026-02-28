@@ -13,6 +13,10 @@ interface Listing {
 interface RecentResponse {
   listings: Listing[];
   count: number;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -30,13 +34,15 @@ export default function App() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [password, setPassword] = useState(() => localStorage.getItem('appPassword') || '');
   const [hasPassword, setHasPassword] = useState(() => Boolean(localStorage.getItem('appPassword')));
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   const queryParams = useMemo(() => {
-    const params = new URLSearchParams({ minutes: minutes.toString() });
+    const params = new URLSearchParams({ minutes: minutes.toString(), page: page.toString(), pageSize: pageSize.toString() });
     if (sourceFilter !== 'all') params.set('source', sourceFilter);
     if (search.trim()) params.set('q', search.trim());
     return params.toString();
-  }, [minutes, sourceFilter, search]);
+  }, [minutes, sourceFilter, search, page]);
 
   const fetchRecent = async () => {
     setLoading(true);
@@ -118,7 +124,9 @@ export default function App() {
           )}
         </div>
         <div className="input-row">
-          <button onClick={() => (window.location.href = `${apiBase}/api/auth/start`)}>Connect Gmail</button>
+          {!connectedEmail && (
+            <button onClick={() => (window.location.href = `${apiBase}/api/auth/start`)}>Connect Gmail</button>
+          )}
           <button onClick={ingest} disabled={ingesting || !connectedEmail}>
             {ingesting ? 'Ingesting…' : 'Ingest last hour'}
           </button>
@@ -160,14 +168,14 @@ export default function App() {
         <div className="card">
           <div className="input-row">
             <label>
-              Minutes window
-              <input
-                type="number"
-                min={5}
-                max={360}
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value) || 60)}
-              />
+              Look back (minutes)
+              <select value={minutes} onChange={(e) => { setMinutes(Number(e.target.value)); setPage(1); }}>
+                <option value={60}>60</option>
+                <option value={180}>180</option>
+                <option value={360}>360</option>
+                <option value={720}>720</option>
+                <option value={1440}>1440</option>
+              </select>
             </label>
             <label>
               Source
@@ -185,12 +193,9 @@ export default function App() {
                 type="text"
                 placeholder="keyword in title/snippet"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
             </label>
-            <button onClick={fetchRecent} disabled={loading}>
-              {loading ? 'Refreshing…' : 'Refresh now'}
-            </button>
           </div>
         </div>
       )}
@@ -200,7 +205,7 @@ export default function App() {
       {connectedEmail && (
         <div className="card">
           <div className="meta" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong>{recent?.count ?? 0} listings in last {minutes} min</strong>
+            <strong>{recent?.total ?? 0} listings in last {minutes} min</strong>
             {lastRun && <span>Last ingest: {lastRun.toLocaleTimeString()}</span>}
           </div>
           <div className="listings">
@@ -221,6 +226,13 @@ export default function App() {
               </div>
             )) || <p>No listings yet.</p>}
           </div>
+          {recent && recent.totalPages > 1 && (
+            <div className="input-row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
+              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+              <span>Page {page} of {recent.totalPages}</span>
+              <button disabled={page >= (recent.totalPages || 1)} onClick={() => setPage((p) => Math.min(recent.totalPages, p + 1))}>Next</button>
+            </div>
+          )}
         </div>
       )}
 

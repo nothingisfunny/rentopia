@@ -92,6 +92,7 @@ npm run prisma:migrate -- --name init
 
 - `GET /api/recent?minutes=60&source=craigslist&q=loft`
   - Returns listings with `latestSeenAt` within the window, optional source filter and text search.
+  - Supports pagination: `page` (default 1), `pageSize` (default 20, max 50). Response includes `total`, `page`, `pageSize`, `totalPages`.
 - `GET /api/health`
   - Simple health check; returns `{ status: "ok" }`.
 
