@@ -85,13 +85,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const gmail = google.gmail({ version: 'v1', auth: oauth });
     const list = await gmail.users.messages.list({
       userId: 'me',
-      q: `label:apt-alerts newer_than:${minutes}m`,
+      q: `newer_than:${minutes}m`,
       maxResults: 50
     });
 
     const messages = list.data.messages || [];
     const scannedMessages = messages.length;
     const ids = messages.map((m) => m.id!).filter(Boolean);
+
+    console.log('[ingest] minutes=%s messages=%s', minutes, scannedMessages);
 
     const existingEvents = ids.length
       ? await prisma.listingEvent.findMany({ where: { emailMessageId: { in: ids } }, select: { emailMessageId: true } })
@@ -168,17 +170,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           newEvents += 1;
         } catch (err) {
           // ignore unique constraint collisions
-          if (process.env.NODE_ENV === 'development') console.warn('Duplicate event', err);
+          console.warn('[ingest] duplicate event', err);
         }
       }
     }
+
+    console.log('[ingest] newMessages=%s extractedUrls=%s newEvents=%s newUniqueListings=%s', newMessages, extractedUrls, newEvents, newUniqueListings);
 
     const recentUniqueListings = await prisma.listing.findMany({
       where: { latestSeenAt: { gte: new Date(Date.now() - minutes * 60 * 1000) } },
       orderBy: { latestSeenAt: 'desc' }
     });
 
-    res.status(200).json({ scannedMessages, newMessages, extractedUrls, newEvents, newUniqueListings, recentUniqueListings });
+    res.status(200).json({
+      scannedMessages,
+      newMessages,
+      extractedUrls,
+      newEvents,
+      newUniqueListings,
+      recentUniqueListings
+    });
   } catch (err) {
     console.error('ingest error', err);
     res.status(500).json({ error: (err as Error).message });

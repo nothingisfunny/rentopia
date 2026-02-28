@@ -80,7 +80,8 @@ npm run prisma:migrate -- --name init
 ## Ingestion flow
 - `POST /api/ingest?minutes=60`
   - Rate limit: 1 request per 30s per IP (Upstash if configured, otherwise in-memory).
-  - Uses the stored refresh token to fetch messages labeled `apt-alerts` newer than the window.
+  - Query params: `minutes` (default 60), `label` (default `apt-alerts`).
+  - Uses the stored refresh token to fetch messages labeled `label` newer than the window.
   - Fetches each message, extracts all URLs from text/plain and text/html bodies.
   - Canonicalizes URLs (drops utm/fbclid/gclid/etc.), classifies source, dedupes by SHA-256 hash.
   - Upserts `Listing`, inserts `ListingEvent` (unique on emailMessageId+urlHash).
