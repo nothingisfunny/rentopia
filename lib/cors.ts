@@ -6,11 +6,7 @@ function pickOrigin(reqOrigin: string | undefined, allowed: string[]): string | 
   return allowed.find((o) => o.replace(/\/$/, '') === normalized);
 }
 
-export function applyCors(
-  req: VercelRequest,
-  res: VercelResponse,
-  methods: string[]
-): boolean {
+export function applyCors(req: VercelRequest, res: VercelResponse, methods: string[]): boolean {
   const allowList = (process.env.APP_ORIGIN || '')
     .split(',')
     .map((s) => s.trim())
