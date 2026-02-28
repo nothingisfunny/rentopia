@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "vercel dev --listen 3000",
-    "build": "vite build",
+    "build": "prisma generate && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "5.9.1",
