@@ -45,9 +45,14 @@ UPSTASH_REDIS_REST_TOKEN=
 ```bash
 npm install
 npm run prisma:generate
-npm run dev   # starts Vite on 5173
+# Option A: run API locally (requires Vercel login/token)
+npm run dev:api   # vercel dev --listen 3000
+# Option B: skip local API; point SPA to deployed API
+#   set VITE_API_BASE=https://<your-app>.vercel.app in .env
+# Frontend in either case
+npm run dev       # Vite on :5173 (proxies /api to :3000 when local)
 ```
-Vercel functions run locally via `vercel dev` if you prefer; otherwise, the SPA will call deployed API.
+Without `dev:api`, keep `VITE_API_BASE` set so the SPA calls the deployed API instead of localhost to avoid JSON parse errors.
 
 ## Database setup
 1) Update `DATABASE_URL` in `.env`.

@@ -5,6 +5,7 @@ import { canonicalizeUrl, hashUrl } from '../lib/canonicalize.js';
 import { extractUrls } from '../lib/extract.js';
 import { enforceRateLimit } from '../lib/rateLimit.js';
 import { getOAuthClient } from '../lib/gmail.js';
+import { applyCors } from '../lib/cors.js';
 
 interface GmailMessagePayload {
   mimeType?: string;
@@ -36,6 +37,8 @@ function classifySource(url: URL): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (applyCors(req, res, ['POST'])) return;
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;

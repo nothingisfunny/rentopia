@@ -13,6 +13,8 @@ interface RecentResponse {
   count: number;
 }
 
+const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+
 export default function App() {
   const [minutes, setMinutes] = useState(60);
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -34,7 +36,7 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/recent?${queryParams}`);
+      const res = await fetch(`${apiBase}/api/recent?${queryParams}`);
       if (!res.ok) throw new Error(`Recent failed: ${res.status}`);
       const data = (await res.json()) as RecentResponse;
       setRecent(data);
@@ -55,7 +57,7 @@ export default function App() {
     setIngesting(true);
     setError('');
     try {
-      const res = await fetch(`/api/ingest?minutes=${minutes}`, {
+      const res = await fetch(`${apiBase}/api/ingest?minutes=${minutes}`, {
         method: 'POST'
       });
       if (!res.ok) {
@@ -80,7 +82,7 @@ export default function App() {
           <p>Reads Gmail label <code>apt-alerts</code>, dedupes links, shows what appeared in the last hour.</p>
         </div>
         <div className="input-row">
-          <button onClick={() => (window.location.href = '/api/auth/start')}>Connect Gmail</button>
+          <button onClick={() => (window.location.href = `${apiBase}/api/auth/start`)}>Connect Gmail</button>
           <button onClick={ingest} disabled={ingesting}>
             {ingesting ? 'Ingesting…' : 'Ingest last hour'}
           </button>
