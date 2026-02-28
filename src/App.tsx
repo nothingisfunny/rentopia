@@ -177,8 +177,8 @@ export default function App() {
               Source
               <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
                 <option value="all">All</option>
-                <option value="facebook">Facebook</option>
                 <option value="craigslist">Craigslist</option>
+                <option value="facebook">Facebook</option>
                 <option value="streeteasy">StreetEasy</option>
                 <option value="other">Other</option>
               </select>
