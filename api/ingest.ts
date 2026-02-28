@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import prisma from '../lib/prisma.js';
 import { canonicalizeUrl, hashUrl } from '../lib/canonicalize.js';
-import { extractUrls, extractFirstImage, stripHtml } from '../lib/extract.js';
+import { extractUrls, extractFirstImage, stripHtml, extractListingsFromHtml } from '../lib/extract.js';
 import { enforceRateLimit } from '../lib/rateLimit.js';
 import { getOAuthClient } from '../lib/gmail.js';
 import { applyCors } from '../lib/cors.js';
@@ -56,13 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const minutes = Number(req.query.minutes ?? 60);
-   const isBackfill = String(req.query.backfill || '').toLowerCase() === 'true';
-   const backfillSecret = process.env.BACKFILL_SECRET;
-   if (isBackfill) {
-     if (!backfillSecret || req.query.secret !== backfillSecret) {
-       res.status(401).json({ error: 'Unauthorized backfill' });
-       return;
+  const isBackfill = String(req.query.backfill || '').toLowerCase() === 'true';
+  const backfillSecret = process.env.BACKFILL_SECRET;
+  if (isBackfill) {
+    if (!backfillSecret || req.query.secret !== backfillSecret) {
+      res.status(401).json({ error: 'Unauthorized backfill' });
+      return;
      }
    }
   const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
@@ -111,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (let page = 0; page < maxPages; page++) {
       const list = await gmail.users.messages.list({
         userId: 'me',
-        q: `newer_than:${minutes}m`,
+        q: `from:alerts@alerts.craigslist.org`,
         maxResults: 50,
         pageToken
       });
@@ -157,6 +156,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stripHtml(html).trim().slice(0, 500) ||
         imageTitle ||
         null;
+      const craigslistListings = extractListingsFromHtml(html)
+        .filter((l) => l.url.includes('craigslist.org') && l.url.includes('/apa/'));
+      const clMap = new Map<string, { title: string | null; price: number | null; image: string | null }>();
+      for (const cl of craigslistListings) {
+        const canonical = canonicalizeUrl(cl.url);
+        if (!canonical) continue;
+        clMap.set(canonical, {
+          title: cl.text,
+          price: cl.price,
+          image: cl.image
+        });
+      }
 
       const urls = extractUrls(plain, html);
       extractedUrls += urls.length;
@@ -166,10 +177,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!canonical) continue;
         const urlObj = new URL(canonical);
         const source = classifySource(urlObj);
-        if (source === 'craigslist' && !urlObj.pathname.includes('/apa')) continue; // only apts
+        if (source !== 'craigslist') continue; // only craigslist
+        if (!urlObj.pathname.includes('/apa')) continue; // only apts
         const urlHash = hashUrl(canonical);
 
-        const { price, title: parsedTitle } = source === 'craigslist' ? parseCraigslistSubject(subject || plain) : { price: null, title: null };
+        const clDetails = source === 'craigslist' ? clMap.get(canonical) : undefined;
+        const { price: subjPrice, title: parsedTitle } = source === 'craigslist' ? parseCraigslistSubject(subject || plain) : { price: null, title: null };
+        const price = clDetails?.price ?? subjPrice;
+        const chosenImage = clDetails?.image || firstImage;
+        const chosenTitle = clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
 
         const existingListing = await prisma.listing.findUnique({ where: { urlHash } });
         let listingId: string;
@@ -179,9 +195,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             data: {
               latestSeenAt: receivedAt,
               ...(price && !existingListing.price ? { price } : {}),
-              ...(firstImage && !existingListing.thumbnailUrl ? { thumbnailUrl: firstImage } : {}),
+              ...(chosenImage && !existingListing.thumbnailUrl ? { thumbnailUrl: chosenImage } : {}),
               ...(description && !existingListing.description ? { description } : {}),
-              ...(parsedTitle && !existingListing.title ? { title: parsedTitle } : {})
+              ...(chosenTitle && !existingListing.title ? { title: chosenTitle } : {})
             }
           });
           listingId = existingListing.id;
@@ -191,10 +207,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               url: canonical,
               urlHash,
               source,
-              title: parsedTitle || subject || plain.slice(0, 140) || null,
+              title: chosenTitle,
               description: description || null,
               price,
-              thumbnailUrl: firstImage,
+              thumbnailUrl: chosenImage,
               latestSeenAt: receivedAt
             }
           });

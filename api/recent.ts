@@ -12,7 +12,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const minutes = Number(req.query.minutes ?? 60);
   const source = (req.query.source as string | undefined) || undefined;
   const q = (req.query.q as string | undefined)?.trim();
   const page = Math.max(1, Number(req.query.page ?? 1));
@@ -21,7 +20,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const where = {
-      latestSeenAt: { gte: new Date(Date.now() - minutes * 60 * 1000) },
       ...(source && source !== 'all' ? { source } : {}),
       ...(q
         ? {

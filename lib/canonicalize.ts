@@ -5,7 +5,16 @@ const TRACKING_EXACT = ['mc_cid', 'mc_eid'];
 
 export function canonicalizeUrl(raw: string): string | null {
   try {
-    const url = new URL(raw.trim());
+    const trimmed = raw.trim();
+    const url = new URL(trimmed);
+
+    // Unwrap Google redirect links if present (?q=realUrl)
+    if (url.hostname.includes('google.') && url.pathname === '/url') {
+      const q = url.searchParams.get('q');
+      if (q) {
+        return canonicalizeUrl(q); // recurse on real URL
+      }
+    }
     url.hash = '';
     url.protocol = url.protocol.replace(':', '') === 'http' ? 'https:' : url.protocol;
     const params = url.searchParams;

@@ -23,7 +23,6 @@ interface RecentResponse {
 const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 export default function App() {
-  const [minutes, setMinutes] = useState(60);
   const [sourceFilter, setSourceFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,11 +38,11 @@ export default function App() {
   const pageSize = 12;
 
   const queryParams = useMemo(() => {
-    const params = new URLSearchParams({ minutes: minutes.toString(), page: page.toString(), pageSize: pageSize.toString() });
+    const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
     if (sourceFilter !== 'all') params.set('source', sourceFilter);
     if (search.trim()) params.set('q', search.trim());
     return params.toString();
-  }, [minutes, sourceFilter, search, page]);
+  }, [sourceFilter, search, page]);
 
   const fetchRecent = async () => {
     setLoading(true);
@@ -175,16 +174,6 @@ export default function App() {
         <div className="card">
           <div className="input-row">
             <label>
-              Look back (minutes)
-              <select value={minutes} onChange={(e) => { setMinutes(Number(e.target.value)); setPage(1); }}>
-                <option value={60}>60</option>
-                <option value={180}>180</option>
-                <option value={360}>360</option>
-                <option value={720}>720</option>
-                <option value={1440}>1440</option>
-              </select>
-            </label>
-            <label>
               Source
               <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
                 <option value="all">All</option>
@@ -212,7 +201,7 @@ export default function App() {
       {connectedEmail && (
         <div className="card">
           <div className="meta" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong>{recent?.total ?? 0} listings in last {minutes} min</strong>
+            <strong>{recent?.total ?? 0} listings</strong>
             {lastRun && <span>Last ingest: {lastRun.toLocaleTimeString()}</span>}
           </div>
           <div className="listings">
