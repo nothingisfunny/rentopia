@@ -7,6 +7,7 @@ interface Listing {
   title: string | null;
   price?: number | null;
   thumbnailUrl?: string | null;
+  description?: string | null;
   latestSeenAt: string;
 }
 
@@ -229,6 +230,11 @@ export default function App() {
                 <a href={l.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
                   {l.price ? `$${l.price.toLocaleString()} - ` : ''}{l.title || l.url}
                 </a>
+                {l.description && (
+                  <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: 14 }}>
+                    {l.description}
+                  </p>
+                )}
               </div>
             )) || <p>No listings yet.</p>}
           </div>

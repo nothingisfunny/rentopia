@@ -23,6 +23,7 @@ model Listing {
   urlHash      String   @unique
   source       String
   title        String?
+  description  String?
   price        Int?
   thumbnailUrl String?
   latestSeenAt DateTime

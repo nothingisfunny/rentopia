@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import prisma from '../lib/prisma.js';
 import { canonicalizeUrl, hashUrl } from '../lib/canonicalize.js';
-import { extractUrls, extractFirstImage } from '../lib/extract.js';
+import { extractUrls, extractFirstImage, stripHtml } from '../lib/extract.js';
 import { enforceRateLimit } from '../lib/rateLimit.js';
 import { getOAuthClient } from '../lib/gmail.js';
 import { applyCors } from '../lib/cors.js';
@@ -151,7 +151,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       collectBodies(payload, plainParts, htmlParts);
       const plain = plainParts.join('\n');
       const html = htmlParts.join('\n');
-      const firstImage = extractFirstImage(html);
+      const { src: firstImage, title: imageTitle } = extractFirstImage(html);
+      const description =
+        plain?.trim().slice(0, 500) ||
+        stripHtml(html).trim().slice(0, 500) ||
+        imageTitle ||
+        null;
 
       const urls = extractUrls(plain, html);
       extractedUrls += urls.length;
@@ -171,7 +176,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (existingListing) {
           await prisma.listing.update({
             where: { urlHash },
-            data: { latestSeenAt: receivedAt }
+            data: {
+              latestSeenAt: receivedAt,
+              ...(price && !existingListing.price ? { price } : {}),
+              ...(firstImage && !existingListing.thumbnailUrl ? { thumbnailUrl: firstImage } : {}),
+              ...(description && !existingListing.description ? { description } : {}),
+              ...(parsedTitle && !existingListing.title ? { title: parsedTitle } : {})
+            }
           });
           listingId = existingListing.id;
         } else {
@@ -181,6 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               urlHash,
               source,
               title: parsedTitle || subject || plain.slice(0, 140) || null,
+              description: description || null,
               price,
               thumbnailUrl: firstImage,
               latestSeenAt: receivedAt
