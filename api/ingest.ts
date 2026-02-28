@@ -2,10 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import prisma from '../lib/prisma.js';
 import { canonicalizeUrl, hashUrl } from '../lib/canonicalize.js';
-import { extractUrls } from '../lib/extract.js';
+import { extractUrls, extractFirstImage } from '../lib/extract.js';
 import { enforceRateLimit } from '../lib/rateLimit.js';
 import { getOAuthClient } from '../lib/gmail.js';
 import { applyCors } from '../lib/cors.js';
+import { requireAppPassword } from '../lib/auth.js';
 
 interface GmailMessagePayload {
   mimeType?: string;
@@ -36,8 +37,19 @@ function classifySource(url: URL): string {
   return 'other';
 }
 
+function parseCraigslistSubject(subject?: string) {
+  if (!subject) return { price: null as number | null, title: null as string | null, isBrooklyn: false };
+  const priceMatch = subject.match(/\$([\d,]+)/);
+  const price = priceMatch ? Number(priceMatch[1].replace(/,/g, '')) : null;
+  const parts = subject.split('-').map((p) => p.trim());
+  const title = parts.length >= 3 ? parts.slice(2).join(' - ').trim() : subject.trim();
+  const isBrooklyn = /\/brk|Brooklyn/i.test(subject);
+  return { price, title, isBrooklyn };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res, ['POST'])) return;
+  if (requireAppPassword(req, res)) return;
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -121,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       collectBodies(payload, plainParts, htmlParts);
       const plain = plainParts.join('\n');
       const html = htmlParts.join('\n');
+      const firstImage = extractFirstImage(html);
 
       const urls = extractUrls(plain, html);
       extractedUrls += urls.length;
@@ -130,7 +143,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!canonical) continue;
         const urlObj = new URL(canonical);
         const source = classifySource(urlObj);
+        if (source === 'craigslist' && !urlObj.pathname.includes('/apa')) continue; // only apts
         const urlHash = hashUrl(canonical);
+
+        const { price, title: parsedTitle } = source === 'craigslist' ? parseCraigslistSubject(subject || plain) : { price: null, title: null };
 
         const existingListing = await prisma.listing.findUnique({ where: { urlHash } });
         let listingId: string;
@@ -146,7 +162,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               url: canonical,
               urlHash,
               source,
-              title: subject || plain.slice(0, 140) || null,
+              title: parsedTitle || subject || plain.slice(0, 140) || null,
+              price,
+              thumbnailUrl: firstImage,
               latestSeenAt: receivedAt
             }
           });

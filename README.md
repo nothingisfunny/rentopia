@@ -51,6 +51,9 @@ npm run dev:api   # vercel dev --listen 3000
 #   set VITE_API_BASE=https://<your-app>.vercel.app in .env
 # Frontend in either case
 npm run dev       # Vite on :5173 (proxies /api to :3000 when local)
+
+# Remove all listings (dangerous):
+# DATABASE_URL=... npx prisma db execute --command "TRUNCATE \"ListingEvent\", \"Listing\" RESTART IDENTITY CASCADE;"
 ```
 Without `dev:api`, keep `VITE_API_BASE` set so the SPA calls the deployed API instead of localhost to avoid JSON parse errors.
 

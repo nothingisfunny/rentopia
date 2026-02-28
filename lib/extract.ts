@@ -1,4 +1,5 @@
 const URL_REGEX = /(https?:\/\/[^\s"'<>]+)/gi;
+const IMG_REGEX = /<img[^>]+src=["']([^"']+)["']/i;
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, ' ');
@@ -16,4 +17,9 @@ export function extractUrls(textPlain: string, textHtml: string): string[] {
   if (textPlain) scan(textPlain);
   if (textHtml) scan(stripHtml(textHtml));
   return Array.from(urls);
+}
+
+export function extractFirstImage(html: string): string | null {
+  const match = IMG_REGEX.exec(html);
+  return match ? match[1] : null;
 }

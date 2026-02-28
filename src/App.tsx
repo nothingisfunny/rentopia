@@ -5,6 +5,8 @@ interface Listing {
   url: string;
   source: string;
   title: string | null;
+  price?: number | null;
+  thumbnailUrl?: string | null;
   latestSeenAt: string;
 }
 
@@ -26,6 +28,8 @@ export default function App() {
   const [lastRun, setLastRun] = useState<Date | null>(null);
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [password, setPassword] = useState(() => localStorage.getItem('appPassword') || '');
+  const [hasPassword, setHasPassword] = useState(() => Boolean(localStorage.getItem('appPassword')));
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams({ minutes: minutes.toString() });
@@ -38,7 +42,9 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${apiBase}/api/recent?${queryParams}`);
+      const res = await fetch(`${apiBase}/api/recent?${queryParams}`, {
+        headers: password ? { 'x-app-password': password } : {}
+      });
       if (!res.ok) throw new Error(`Recent failed: ${res.status}`);
       const data = (await res.json()) as RecentResponse;
       setRecent(data);
@@ -60,7 +66,9 @@ export default function App() {
     const checkStatus = async () => {
       setCheckingStatus(true);
       try {
-        const res = await fetch(`${apiBase}/api/status`);
+        const res = await fetch(`${apiBase}/api/status`, {
+          headers: password ? { 'x-app-password': password } : {}
+        });
         if (!res.ok) throw new Error(`Status failed: ${res.status}`);
         const data = await res.json();
         if (data.connected) {
@@ -82,7 +90,8 @@ export default function App() {
     setError('');
     try {
       const res = await fetch(`${apiBase}/api/ingest?minutes=${minutes}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: password ? { 'x-app-password': password } : {}
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -115,6 +124,30 @@ export default function App() {
           </button>
         </div>
       </div>
+      {!hasPassword && (
+        <div className="card" style={{ borderColor: '#f59e0b' }}>
+          <div className="input-row">
+            <input
+              type="password"
+              placeholder="Enter access password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                localStorage.setItem('appPassword', password);
+                setHasPassword(true);
+                fetchRecent();
+              }}
+              disabled={!password}
+            >
+              Save password
+            </button>
+          </div>
+          <p style={{ color: '#f59e0b' }}>A password is required to view data.</p>
+        </div>
+      )}
+
       {checkingStatus && <div className="card">Checking Gmail connection…</div>}
 
       {!connectedEmail && !checkingStatus && (
@@ -177,8 +210,13 @@ export default function App() {
                   <span className="badge" style={{ background: '#e2e8f0', color: '#0f172a' }}>{l.source}</span>
                   <span>{new Date(l.latestSeenAt).toLocaleTimeString()}</span>
                 </div>
-                <a href={l.url} target="_blank" rel="noreferrer">
-                  {l.title || l.url}
+                {l.thumbnailUrl && (
+                  <a href={l.url} target="_blank" rel="noreferrer">
+                    <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 160 }} />
+                  </a>
+                )}
+                <a href={l.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
+                  {l.price ? `$${l.price.toLocaleString()} - ` : ''}{l.title || l.url}
                 </a>
               </div>
             )) || <p>No listings yet.</p>}
