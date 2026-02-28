@@ -1,4 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  Container,
+  Flex,
+  Grid,
+  Heading,
+  IconButton,
+  Inset,
+  Select,
+  Separator,
+  Text,
+  TextField
+} from '@radix-ui/themes';
 
 interface Listing {
   id: string;
@@ -115,17 +130,17 @@ export default function App() {
 
   if (!hasPassword) {
     return (
-      <div className="container">
-        <div className="card" style={{ maxWidth: 480, margin: '40px auto' }}>
-          <h2>Enter access password</h2>
-          <div className="input-row">
-            <input
+      <Container size="2" px="4" py="6">
+        <Card size="3" style={{ maxWidth: 520, margin: '40px auto' }}>
+          <Heading size="4" mb="3">Enter access password</Heading>
+          <Flex gap="3" align="center">
+            <TextField.Root
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <button
+            <Button
               onClick={() => {
                 localStorage.setItem('appPassword', password);
                 setHasPassword(true);
@@ -133,113 +148,114 @@ export default function App() {
               disabled={!password}
             >
               Continue
-            </button>
-          </div>
-          {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-        </div>
-      </div>
+            </Button>
+          </Flex>
+          {error && <Text color="red" mt="2">{error}</Text>}
+        </Card>
+      </Container>
     );
   }
 
   return (
-    <div className="container">
-      <div className="header">
-        <div>
-          <div className="badge">Alert Tracker MVP</div>
-          <h1>Fresh apartments from your Gmail alerts</h1>
-          <p>Reads Gmail label <code>apt-alerts</code>, dedupes links, shows what appeared in the last hour.</p>
+    <Container size="3" px="4" py="5">
+      <Flex justify="between" align="center" wrap="wrap" gap="4" mb="4">
+        <Box>
+          <Text size="2" weight="medium" color="gray">Alert Tracker MVP</Text>
+          <Heading size="6" mt="1">Fresh apartments from your Gmail alerts</Heading>
           {connectedEmail && (
-            <p style={{ color: '#16a34a', fontWeight: 600 }}>Connected as {connectedEmail}</p>
+            <Text size="2" color="green" weight="medium">Connected as {connectedEmail}</Text>
           )}
-        </div>
-        <div className="input-row">
+        </Box>
+        <Flex gap="3">
           {!connectedEmail && (
-            <button onClick={() => (window.location.href = `${apiBase}/api/auth/start`)}>Connect Gmail</button>
+            <Button onClick={() => (window.location.href = `${apiBase}/api/auth/start`)}>
+              Connect Gmail
+            </Button>
           )}
-          <button onClick={ingest} disabled={ingesting || !connectedEmail}>
-            {ingesting ? 'Ingesting…' : 'Ingest last hour'}
-          </button>
-        </div>
-      </div>
+          <Button onClick={ingest} disabled={ingesting || !connectedEmail} variant="surface">
+            {ingesting ? 'Ingesting…' : 'Ingest now'}
+          </Button>
+        </Flex>
+      </Flex>
 
-      {checkingStatus && <div className="card">Checking Gmail connection…</div>}
+      {checkingStatus && <Card>Checking Gmail connection…</Card>}
 
       {!connectedEmail && !checkingStatus && (
-        <div className="card" style={{ color: '#b91c1c' }}>
-          No Gmail account connected yet. Click “Connect Gmail” to authorize and start ingesting alerts.
-        </div>
+        <Card>
+          <Text color="red">No Gmail account connected yet. Click “Connect Gmail”.</Text>
+        </Card>
       )}
 
       {connectedEmail && (
-        <div className="card">
-          <div className="input-row">
-            <label>
-              Source
-              <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
-                <option value="all">All</option>
-                <option value="craigslist">Craigslist</option>
-                <option value="facebook">Facebook</option>
-                <option value="streeteasy">StreetEasy</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>
-              Search
-              <input
-                type="text"
-                placeholder="keyword in title/snippet"
+        <Card mb="4">
+          <Flex gap="3" wrap="wrap">
+            <Box>
+              <Text size="2" weight="medium">Source</Text>
+              <Select.Root value={sourceFilter} onValueChange={(v) => setSourceFilter(v)}>
+                <Select.Trigger />
+                <Select.Content>
+                  <Select.Item value="all">All</Select.Item>
+                  <Select.Item value="craigslist">Craigslist</Select.Item>
+                  <Select.Item value="facebook">Facebook</Select.Item>
+                  <Select.Item value="streeteasy">StreetEasy</Select.Item>
+                  <Select.Item value="other">Other</Select.Item>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+            <Box grow="1">
+              <Text size="2" weight="medium">Search</Text>
+              <TextField.Root
+                placeholder="keyword in title/description"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
-            </label>
-          </div>
-        </div>
+            </Box>
+          </Flex>
+        </Card>
       )}
 
-      {error && <div className="card" style={{ color: '#b91c1c' }}>⚠️ {error}</div>}
+      {error && <Card><Text color="red">⚠️ {error}</Text></Card>}
 
       {connectedEmail && (
-        <div className="card">
-          <div className="meta" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong>{recent?.total ?? 0} listings</strong>
-            {lastRun && <span>Last ingest: {lastRun.toLocaleTimeString()}</span>}
-          </div>
-          <div className="listings">
+        <Card>
+          <Flex justify="between" align="center" mb="3">
+            <Text weight="bold">{recent?.total ?? 0} listings</Text>
+            {lastRun && <Text size="2">Last ingest: {lastRun.toLocaleTimeString()}</Text>}
+          </Flex>
+          <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="3">
             {recent?.listings.map((l) => (
-              <div key={l.id} className="listing">
-                <div className="meta">
-                  <span className="badge" style={{ background: '#e2e8f0', color: '#0f172a' }}>{l.source}</span>
-                  <span>{new Date(l.latestSeenAt).toLocaleTimeString()}</span>
-                </div>
+              <Card key={l.id} variant="surface" size="2">
+                <Flex justify="between" align="center" mb="1">
+                  <Text size="1" weight="medium">{l.source}</Text>
+                  <Text size="1" color="gray">{new Date(l.latestSeenAt).toLocaleTimeString()}</Text>
+                </Flex>
                 {l.thumbnailUrl && (
-                  <a href={l.url} target="_blank" rel="noreferrer">
-                    <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 160 }} />
-                  </a>
+                  <Inset clip="padding-box" mb="2">
+                    <a href={l.url} target="_blank" rel="noreferrer">
+                      <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 180 }} />
+                    </a>
+                  </Inset>
                 )}
-                <a href={l.url} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>
+                <Text as="a" href={l.url} target="_blank" rel="noreferrer" weight="bold" size="2" style={{ display: 'block' }}>
                   {l.price ? `$${l.price.toLocaleString()} - ` : ''}{l.title || l.url}
-                </a>
+                </Text>
                 {l.description && (
-                  <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: 14 }}>
+                  <Text size="1" color="gray" style={{ display: 'block', marginTop: 4 }}>
                     {l.description}
-                  </p>
+                  </Text>
                 )}
-              </div>
-            )) || <p>No listings yet.</p>}
-          </div>
+              </Card>
+            )) || <Text>No listings yet.</Text>}
+          </Grid>
           {recent && recent.totalPages > 1 && (
-            <div className="input-row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
-              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-              <span>Page {page} of {recent.totalPages}</span>
-              <button disabled={page >= (recent.totalPages || 1)} onClick={() => setPage((p) => Math.min(recent.totalPages, p + 1))}>Next</button>
-            </div>
+            <Flex justify="between" align="center" mt="3">
+              <Button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} variant="soft">Prev</Button>
+              <Text size="2">Page {page} of {recent.totalPages}</Text>
+              <Button disabled={page >= (recent.totalPages || 1)} onClick={() => setPage((p) => Math.min(recent.totalPages, p + 1))} variant="soft">Next</Button>
+            </Flex>
           )}
-        </div>
+        </Card>
       )}
-
-      <footer>
-        Keep alerts flowing by labeling incoming emails as <strong>apt-alerts</strong> in Gmail.
-      </footer>
-    </div>
+    </Container>
   );
 }
