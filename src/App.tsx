@@ -214,9 +214,6 @@ export default function App() {
         <>
           <Card mb="3">
             <Flex gap="3" align="center" wrap="wrap">
-              <Button onClick={ingest} disabled={ingesting} variant="surface">
-                {ingesting ? 'Ingesting…' : 'Ingest now'}
-              </Button>
               <Button
                 onClick={async () => {
                   const since = lastIngestAt ? new Date(lastIngestAt).getTime() : undefined;
