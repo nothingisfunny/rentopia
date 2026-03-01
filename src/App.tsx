@@ -199,9 +199,20 @@ export default function App() {
               Connect Gmail
             </Button>
           )}
-          <Button onClick={ingest} disabled={ingesting || !connectedEmail} variant="surface">
-            {ingesting ? 'Ingesting…' : 'Ingest now'}
-          </Button>
+          {connectedEmail && (
+            <Button
+              onClick={async () => {
+                const since = lastIngestAt ? new Date(lastIngestAt).getTime() : undefined;
+                setInjectingLatest(true);
+                await ingest(since);
+                setInjectingLatest(false);
+              }}
+              disabled={injectingLatest || ingesting}
+              variant="surface"
+            >
+              {injectingLatest ? 'Injecting latest…' : `Get the latest${lastIngestAt ? ` (last: ${new Date(lastIngestAt).toLocaleTimeString()})` : ''}`}
+            </Button>
+          )}
         </Flex>
       </Flex>
 
@@ -213,32 +224,7 @@ export default function App() {
         </Card>
       )}
 
-      {connectedEmail && (
-        <>
-          <Card mb="3">
-            <Flex gap="3" align="center" wrap="wrap">
-              <Button
-                onClick={async () => {
-                  const since = lastIngestAt ? new Date(lastIngestAt).getTime() : undefined;
-                  setInjectingLatest(true);
-                  await ingest(since);
-                  setInjectingLatest(false);
-                }}
-                disabled={injectingLatest || ingesting}
-                variant="soft"
-              >
-                {injectingLatest ? 'Injecting latest…' : 'Fetch since last ingest'}
-              </Button>
-              {lastIngestAt && (
-                <Text size="2" color="gray">
-                  Last ingest at {new Date(lastIngestAt).toLocaleString()}
-                </Text>
-              )}
-            </Flex>
-          </Card>
-
-        </>
-      )}
+      {/* Removed secondary ingest card */}
 
       {error && <Card><Text color="red">⚠️ {error}</Text></Card>}
 
@@ -281,7 +267,6 @@ export default function App() {
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </Box>
-          </Flex>
           <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="3">
             {recent?.listings.map((l) => (
               <Card key={l.id} variant="surface" size="2" style={{ position: 'relative' }}>
