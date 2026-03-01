@@ -210,7 +210,7 @@ export default function App() {
               disabled={injectingLatest || ingesting}
               variant="surface"
             >
-              {injectingLatest ? 'Injecting latest…' : `Get the latest${lastIngestAt ? ` (last: ${new Date(lastIngestAt).toLocaleTimeString()})` : ''}`}
+              {injectingLatest ? 'Ingesting latest…' : `Get the latest${lastIngestAt ? ` (last: ${new Date(lastIngestAt).toLocaleTimeString()})` : ''}`}
             </Button>
           )}
         </Flex>
