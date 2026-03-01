@@ -56,13 +56,14 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
   const pBlocks = html.split(/<\/p>/i);
   for (const block of pBlocks) {
     const blockHtml = block + '</p>';
+    const blockText = stripHtml(blockHtml).replace(BR_TAG_REGEX, ' ').replace(/\s+/g, ' ').trim();
     let match: RegExpExecArray | null;
     while ((match = ANCHOR_REGEX.exec(blockHtml)) !== null) {
       const href = match[1];
       const anchorHtml = match[2] || '';
       const textRaw = stripHtml(anchorHtml.replace(BR_TAG_REGEX, ' ')).trim();
       if (/new results/i.test(textRaw)) continue; // skip digest summary anchors
-      const text = textRaw || null;
+      const text = textRaw || blockText || null;
 
       // Price from the surrounding <p> block
       const blockPrice = blockHtml.match(PRICE_REGEX);
@@ -72,7 +73,7 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
       const img = extractFirstImage(blockHtml).src;
 
       // Description from the stripped block text (without the anchor itself)
-      const desc = stripHtml(blockHtml.replace(anchorHtml, '')).replace(BR_TAG_REGEX, ' ').trim();
+      const desc = stripHtml(blockHtml.replace(anchorHtml, '')).replace(BR_TAG_REGEX, ' ').replace(/\s+/g, ' ').trim();
 
       const cleanText = text && /new results/i.test(text) ? null : text;
 

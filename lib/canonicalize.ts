@@ -15,6 +15,14 @@ export function canonicalizeUrl(raw: string): string | null {
         return canonicalizeUrl(q); // recurse on real URL
       }
     }
+
+    // Unwrap Zillow click tracker if it contains a redirect param "u" or "target"
+    if (url.hostname.includes('mail.zillow.com') || url.hostname.includes('click.mail.zillow.com')) {
+      const u = url.searchParams.get('u') || url.searchParams.get('target');
+      if (u) {
+        return canonicalizeUrl(u);
+      }
+    }
     url.hash = '';
     url.protocol = url.protocol.replace(':', '') === 'http' ? 'https:' : url.protocol;
     const params = url.searchParams;

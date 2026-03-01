@@ -33,6 +33,7 @@ function classifySource(url: URL): string {
   const path = url.pathname;
   if (host.includes('facebook.com') && path.includes('/marketplace/') && path.includes('/item/')) return 'facebook';
   if (host.includes('craigslist.org')) return 'craigslist';
+  if (host.includes('zillow.com')) return 'zillow';
   if (host.includes('streeteasy.com')) return 'streeteasy';
   return 'other';
 }
@@ -106,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const gmail = google.gmail({ version: 'v1', auth: oauth });
-    const clauses = ['from:(alerts@alerts.craigslist.org)'];
+    const clauses = ['from:(alerts@alerts.craigslist.org OR rental-instant-updates@mail.zillow.com)'];
     if (sinceDate && !isNaN(sinceDate.getTime())) {
       const yyyy = sinceDate.getUTCFullYear();
       const mm = String(sinceDate.getUTCMonth() + 1).padStart(2, '0');
@@ -170,23 +171,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stripHtml(html).trim().slice(0, 500) ||
         imageTitle ||
         null;
-      const craigslistListings = extractListingsFromHtml(html)
-        .filter((l) => l.url.includes('craigslist.org') && l.url.includes('/apa/'));
-      const clMap = new Map<string, { title: string | null; price: number | null; image: string | null; description: string | null }>();
-      for (const cl of craigslistListings) {
-        const canonical = canonicalizeUrl(cl.url);
+      const allListings = extractListingsFromHtml(html);
+      const detailMap = new Map<string, { title: string | null; price: number | null; image: string | null; description: string | null }>();
+      for (const item of allListings) {
+        const canonical = canonicalizeUrl(item.url);
         if (!canonical) continue;
-        clMap.set(canonical, {
-          title: cl.text,
-          price: cl.price,
-          image: cl.image,
-          description: cl.description
+        detailMap.set(canonical, {
+          title: item.text,
+          price: item.price,
+          image: item.image,
+          description: item.description
         });
       }
 
       // If we have parsed Craigslist anchors, use only those; otherwise fallback to generic URL extraction.
-      const targetUrls = clMap.size
-        ? Array.from(clMap.keys())
+      const targetUrls = detailMap.size
+        ? Array.from(detailMap.keys())
         : extractUrls(plain, html).map((u) => canonicalizeUrl(u)).filter((u): u is string => Boolean(u));
 
       extractedUrls += targetUrls.length;
@@ -194,12 +194,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const canonical of targetUrls) {
         const urlObj = new URL(canonical);
         const source = classifySource(urlObj);
-        if (source !== 'craigslist') continue; // only craigslist
-        if (!urlObj.pathname.includes('/apa')) continue; // only apts
+        if (source === 'craigslist' && !urlObj.pathname.includes('/apa')) continue; // only apts
+        if (source !== 'craigslist' && source !== 'zillow') continue; // only cl + zillow
         const urlHash = hashUrl(canonical);
 
-        const clDetails = clMap.get(canonical);
-        const { price: subjPrice, title: parsedTitle } = parseCraigslistSubject(subject || plain);
+        const clDetails = detailMap.get(canonical);
+        const { price: subjPrice, title: parsedTitle } = source === 'craigslist' ? parseCraigslistSubject(subject || plain) : { price: null, title: null };
         const price = clDetails?.price ?? subjPrice;
         const chosenImage = clDetails?.image || firstImage;
         const chosenTitle = clDetails?.description || clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
