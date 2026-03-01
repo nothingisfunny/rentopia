@@ -172,14 +172,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         null;
       const craigslistListings = extractListingsFromHtml(html)
         .filter((l) => l.url.includes('craigslist.org') && l.url.includes('/apa/'));
-      const clMap = new Map<string, { title: string | null; price: number | null; image: string | null }>();
+      const clMap = new Map<string, { title: string | null; price: number | null; image: string | null; description: string | null }>();
       for (const cl of craigslistListings) {
         const canonical = canonicalizeUrl(cl.url);
         if (!canonical) continue;
         clMap.set(canonical, {
           title: cl.text,
           price: cl.price,
-          image: cl.image
+          image: cl.image,
+          description: cl.description
         });
       }
 
@@ -202,6 +203,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const price = clDetails?.price ?? subjPrice;
         const chosenImage = clDetails?.image || firstImage;
         const chosenTitle = clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
+        const chosenDesc = clDetails?.description || description || null;
 
         const existingListing = await prisma.listing.findUnique({ where: { urlHash } });
         let listingId: string;
@@ -224,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               urlHash,
               source,
               title: chosenTitle,
-              description: description || null,
+              description: chosenDesc,
               price,
               thumbnailUrl: chosenImage,
               latestSeenAt: receivedAt

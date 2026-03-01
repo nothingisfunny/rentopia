@@ -46,27 +46,41 @@ export interface HtmlListing {
   text: string | null;
   price: number | null;
   image: string | null;
-  rawHtml: string | null;
+  description: string | null;
 }
 
 export function extractListingsFromHtml(html: string): HtmlListing[] {
   const listings: HtmlListing[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = ANCHOR_REGEX.exec(html)) !== null) {
-    const href = match[1];
-    const anchorHtml = match[2] || '';
-    const text = stripHtml(anchorHtml.replace(BR_TAG_REGEX, ' ')).trim() || null;
 
-    // Price: look in anchor text or nearby preceding chars
-    const before = html.slice(Math.max(0, match.index - 120), match.index);
-    const priceMatch = anchorHtml.match(PRICE_REGEX) || before.match(PRICE_REGEX);
-    const price = priceMatch ? Number(priceMatch[1].replace(/,/g, '')) : null;
+  // Break into <p> blocks to keep context (price + img + title together)
+  const pBlocks = html.split(/<\/p>/i);
+  for (const block of pBlocks) {
+    const blockHtml = block + '</p>';
+    let match: RegExpExecArray | null;
+    while ((match = ANCHOR_REGEX.exec(blockHtml)) !== null) {
+      const href = match[1];
+      const anchorHtml = match[2] || '';
+      const text = stripHtml(anchorHtml.replace(BR_TAG_REGEX, ' ')).trim() || null;
 
-    // Image: look ahead within next 400 chars
-    const ahead = html.slice(match.index, match.index + 400);
-    const img = extractFirstImage(ahead).src;
+      // Price from the surrounding <p> block
+      const blockPrice = blockHtml.match(PRICE_REGEX);
+      const price = blockPrice ? Number(blockPrice[1].replace(/,/g, '')) : null;
 
-    listings.push({ url: href, text, price, image: img, rawHtml: anchorHtml });
+      // Image from the same block if present
+      const img = extractFirstImage(blockHtml).src;
+
+      // Description from the stripped block text (without the anchor itself)
+      const desc = stripHtml(blockHtml.replace(anchorHtml, '')).replace(BR_TAG_REGEX, ' ').trim();
+
+      listings.push({
+        url: href,
+        text,
+        price,
+        image: img,
+        description: desc || text || null
+      });
+    }
   }
+
   return listings;
 }
