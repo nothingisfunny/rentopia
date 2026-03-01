@@ -75,6 +75,18 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
       // Description from the stripped block text (without the anchor itself)
       const desc = stripHtml(blockHtml.replace(anchorHtml, '')).replace(BR_TAG_REGEX, ' ').replace(/\s+/g, ' ').trim();
 
+      // Derive structured bits for Zillow-style content
+      const bedsMatch = blockText.match(/(\d+(?:\.\d+)?)\s*(?:bd|br|bed)/i);
+      const bathsMatch = blockText.match(/(\d+(?:\.\d+)?)\s*ba/i);
+      const addressMatch = blockText.match(/\d{3,}[^,]+,\s*[^,]+,\s*[A-Z]{2}\s*\d{5}/);
+      const derivedParts = [
+        price ? `$${price.toLocaleString()}` : null,
+        bedsMatch ? `${bedsMatch[1]} br` : null,
+        bathsMatch ? `${bathsMatch[1]} ba` : null,
+        addressMatch ? addressMatch[0] : null
+      ].filter(Boolean);
+      const derivedDesc = derivedParts.join(' • ');
+
       const cleanText = text && /new results/i.test(text) ? null : text;
 
       listings.push({
@@ -82,7 +94,7 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
         text: cleanText,
         price,
         image: img,
-        description: desc || text || null
+        description: derivedDesc || desc || text || null
       });
     }
   }

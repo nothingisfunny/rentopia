@@ -277,7 +277,7 @@ export default function App() {
             {recent?.listings.map((l) => (
               <Card key={l.id} variant="surface" size="2" style={{ position: 'relative' }}>
                 <Flex justify="end" align="center" style={{ position: 'absolute', top: 8, right: 8 }}>
-                  <Badge color="purple" variant="solid" size="1">
+                  <Badge color={l.source === 'zillow' ? 'blue' : 'purple'} variant="solid" size="1">
                     {l.source}
                   </Badge>
                 </Flex>
