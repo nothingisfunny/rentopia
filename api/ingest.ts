@@ -202,7 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { price: subjPrice, title: parsedTitle } = parseCraigslistSubject(subject || plain);
         const price = clDetails?.price ?? subjPrice;
         const chosenImage = clDetails?.image || firstImage;
-        const chosenTitle = clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
+        // Prefer detailed description as title if we have one, else anchor text, else parsed subject.
+        const chosenTitle = clDetails?.description || clDetails?.title || parsedTitle || subject || plain.slice(0, 140) || null;
         const chosenDesc = clDetails?.description || description || null;
 
         const existingListing = await prisma.listing.findUnique({ where: { urlHash } });

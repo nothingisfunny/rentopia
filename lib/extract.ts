@@ -72,9 +72,11 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
       // Description from the stripped block text (without the anchor itself)
       const desc = stripHtml(blockHtml.replace(anchorHtml, '')).replace(BR_TAG_REGEX, ' ').trim();
 
+      const cleanText = text && /new results/i.test(text) ? null : text;
+
       listings.push({
         url: href,
-        text,
+        text: cleanText,
         price,
         image: img,
         description: desc || text || null
