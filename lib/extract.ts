@@ -1,6 +1,7 @@
 const URL_REGEX = /(https?:\/\/[^\s"'<>]+)/gi;
 const IMG_REGEX = /<img[^>]+src=["']([^"']+)["'][^>]*?(?:title=["']([^"']+)["'])?/i;
 const TD_BG_REGEX = /<td[^>]+background=["']([^"']+)["']/i;
+const TR_BG_REGEX = /<tr[^>]+background=["']([^"']+)["']/i;
 const STYLE_BG_REGEX = /background-image\s*:\s*url\(["']?([^"')]+)["']?\)/i;
 const ANCHOR_REGEX = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
 const PRICE_REGEX = /\$([\d,]+)/;
@@ -27,10 +28,11 @@ export function extractUrls(textPlain: string, textHtml: string): string[] {
 export function extractFirstImage(html: string): { src: string | null; title: string | null } {
   const imgMatch = IMG_REGEX.exec(html);
   const bgMatch = TD_BG_REGEX.exec(html);
+  const trBgMatch = TR_BG_REGEX.exec(html);
   const styleBgMatch = STYLE_BG_REGEX.exec(html);
-  if (!imgMatch && !bgMatch && !styleBgMatch) return { src: null, title: null };
+  if (!imgMatch && !bgMatch && !styleBgMatch && !trBgMatch) return { src: null, title: null };
 
-  let src = imgMatch ? imgMatch[1] : bgMatch ? bgMatch[1] : styleBgMatch ? styleBgMatch[1] : null;
+  let src = imgMatch ? imgMatch[1] : bgMatch ? bgMatch[1] : trBgMatch ? trBgMatch[1] : styleBgMatch ? styleBgMatch[1] : null;
   const title = imgMatch ? imgMatch[2] || null : null;
 
   // Gmail proxy URLs sometimes embed the real URL after a '#'
@@ -97,6 +99,9 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
       const derivedDesc = derivedParts.join(' • ');
 
       const cleanText = text && /new results/i.test(text) ? null : text;
+
+      // Skip anchors with no meaningful info (likely footer)
+      if (!price && !bedsMatch && !addressMatch) continue;
 
       listings.push({
         url: href,

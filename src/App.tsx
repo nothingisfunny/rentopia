@@ -237,45 +237,6 @@ export default function App() {
             </Flex>
           </Card>
 
-          <Card mb="4">
-            <Flex gap="3" wrap="wrap" align="center">
-              <Flex gap="2" align="center">
-                <Text size="2" weight="medium">Sources</Text>
-                {['craigslist', 'zillow'].map((s) => {
-                  const active = sourceFilter.includes(s);
-                  return (
-                    <Badge
-                      key={s}
-                      color={s === 'zillow' ? 'blue' : 'purple'}
-                      variant={active ? 'solid' : 'outline'}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setPage(1);
-                        setSourceFilter((prev) => {
-                          const has = prev.includes(s);
-                          if (has) {
-                            const next = prev.filter((p) => p !== s);
-                            return next.length ? next : prev; // keep at least one
-                          }
-                          return [...prev, s];
-                        });
-                      }}
-                    >
-                      {s}
-                    </Badge>
-                  );
-                })}
-              </Flex>
-              <Box grow="1">
-                <Text size="2" weight="medium">Search</Text>
-                <TextField.Root
-                  placeholder="keyword in title/description"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                />
-              </Box>
-            </Flex>
-          </Card>
         </>
       )}
 
@@ -283,9 +244,43 @@ export default function App() {
 
       {connectedEmail && (
         <Card>
-          <Flex justify="between" align="center" mb="3">
+          <Flex justify="between" align="center" mb="3" gap="3" wrap="wrap">
+            <Flex gap="2" align="center">
+              {['craigslist', 'zillow'].map((s) => {
+                const active = sourceFilter.includes(s);
+                return (
+                  <Badge
+                    key={s}
+                    color={s === 'zillow' ? 'blue' : 'purple'}
+                    variant={active ? 'solid' : 'outline'}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setPage(1);
+                      setSourceFilter((prev) => {
+                        const has = prev.includes(s);
+                        if (has) {
+                          const next = prev.filter((p) => p !== s);
+                          return next.length ? next : prev; // keep at least one
+                        }
+                        return [...prev, s];
+                      });
+                    }}
+                  >
+                    {s}
+                  </Badge>
+                );
+              })}
+            </Flex>
             <Text weight="bold">{recent?.total ?? 0} listings</Text>
             {lastRun && <Text size="2">Last ingest: {lastRun.toLocaleTimeString()}</Text>}
+          </Flex>
+          <Box mb="3">
+            <TextField.Root
+              placeholder="keyword in title/description"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
+          </Box>
           </Flex>
           <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="3">
             {recent?.listings.map((l) => (
