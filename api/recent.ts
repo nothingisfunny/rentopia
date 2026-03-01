@@ -12,7 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const source = (req.query.source as string | undefined) || undefined;
+  const sourceParam = (req.query.source as string | undefined) || undefined;
+  const sources =
+    sourceParam && sourceParam !== 'all'
+      ? sourceParam.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
   const q = (req.query.q as string | undefined)?.trim();
   const page = Math.max(1, Number(req.query.page ?? 1));
   const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize ?? 20)));
@@ -20,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const where = {
-      ...(source && source !== 'all' ? { source } : {}),
+      ...(sources.length ? { source: { in: sources } } : {}),
       ...(q
         ? {
             OR: [

@@ -39,7 +39,7 @@ interface RecentResponse {
 const apiBase = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 export default function App() {
-  const [sourceFilter, setSourceFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState<string[]>(['craigslist', 'zillow']);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
@@ -58,7 +58,7 @@ export default function App() {
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
-    if (sourceFilter !== 'all') params.set('source', sourceFilter);
+    if (sourceFilter.length && sourceFilter.length < 2) params.set('source', sourceFilter.join(','));
     if (search.trim()) params.set('q', search.trim());
     return params.toString();
   }, [sourceFilter, search, page]);
@@ -238,20 +238,34 @@ export default function App() {
           </Card>
 
           <Card mb="4">
-            <Flex gap="3" wrap="wrap">
-              <Box>
-                <Text size="2" weight="medium">Source</Text>
-                <Select.Root value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Item value="all">All</Select.Item>
-                    <Select.Item value="craigslist">Craigslist</Select.Item>
-                    <Select.Item value="facebook">Facebook</Select.Item>
-                    <Select.Item value="streeteasy">StreetEasy</Select.Item>
-                    <Select.Item value="other">Other</Select.Item>
-                  </Select.Content>
-                </Select.Root>
-              </Box>
+            <Flex gap="3" wrap="wrap" align="center">
+              <Flex gap="2" align="center">
+                <Text size="2" weight="medium">Sources</Text>
+                {['craigslist', 'zillow'].map((s) => {
+                  const active = sourceFilter.includes(s);
+                  return (
+                    <Badge
+                      key={s}
+                      color={s === 'zillow' ? 'blue' : 'purple'}
+                      variant={active ? 'solid' : 'outline'}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setPage(1);
+                        setSourceFilter((prev) => {
+                          const has = prev.includes(s);
+                          if (has) {
+                            const next = prev.filter((p) => p !== s);
+                            return next.length ? next : prev; // keep at least one
+                          }
+                          return [...prev, s];
+                        });
+                      }}
+                    >
+                      {s}
+                    </Badge>
+                  );
+                })}
+              </Flex>
               <Box grow="1">
                 <Text size="2" weight="medium">Search</Text>
                 <TextField.Root
