@@ -60,7 +60,9 @@ export function extractListingsFromHtml(html: string): HtmlListing[] {
     while ((match = ANCHOR_REGEX.exec(blockHtml)) !== null) {
       const href = match[1];
       const anchorHtml = match[2] || '';
-      const text = stripHtml(anchorHtml.replace(BR_TAG_REGEX, ' ')).trim() || null;
+      const textRaw = stripHtml(anchorHtml.replace(BR_TAG_REGEX, ' ')).trim();
+      if (/new results/i.test(textRaw)) continue; // skip digest summary anchors
+      const text = textRaw || null;
 
       // Price from the surrounding <p> block
       const blockPrice = blockHtml.match(PRICE_REGEX);
