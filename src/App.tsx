@@ -52,6 +52,8 @@ export default function App() {
   const [hasPassword, setHasPassword] = useState(() => Boolean(localStorage.getItem('appPassword')));
   const [page, setPage] = useState(1);
   const pageSize = 12;
+  const [lastIngestAt, setLastIngestAt] = useState<string | null>(null);
+  const [injectingLatest, setInjectingLatest] = useState(false);
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
@@ -108,6 +110,22 @@ export default function App() {
     checkStatus();
   }, [hasPassword, password]);
 
+  // Fetch last ingest time
+  useEffect(() => {
+    const fetchLast = async () => {
+      if (!hasPassword) return;
+      try {
+        const res = await fetch(`${apiBase}/api/last-ingest`, {
+          headers: password ? { 'x-app-password': password } : {}
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.lastIngestAt) setLastIngestAt(data.lastIngestAt);
+      } catch {}
+    };
+    fetchLast();
+  }, [hasPassword, password]);
+
   const ingest = async (sinceMs?: number) => {
     const params = new URLSearchParams();
     if (sinceMs) params.set('sinceMs', sinceMs.toString());
@@ -126,6 +144,7 @@ export default function App() {
       }
       setLastRun(new Date());
       await fetchRecent();
+      if (sinceMs) setLastIngestAt(new Date().toISOString());
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -192,31 +211,58 @@ export default function App() {
       )}
 
       {connectedEmail && (
-        <Card mb="4">
-          <Flex gap="3" wrap="wrap">
-            <Box>
-              <Text size="2" weight="medium">Source</Text>
-              <Select.Root value={sourceFilter} onValueChange={(v) => setSourceFilter(v)}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Item value="all">All</Select.Item>
-                  <Select.Item value="craigslist">Craigslist</Select.Item>
-                  <Select.Item value="facebook">Facebook</Select.Item>
-                  <Select.Item value="streeteasy">StreetEasy</Select.Item>
-                  <Select.Item value="other">Other</Select.Item>
-                </Select.Content>
-              </Select.Root>
-            </Box>
-            <Box grow="1">
-              <Text size="2" weight="medium">Search</Text>
-              <TextField.Root
-                placeholder="keyword in title/description"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              />
-            </Box>
-          </Flex>
-        </Card>
+        <>
+          <Card mb="3">
+            <Flex gap="3" align="center" wrap="wrap">
+              <Button onClick={ingest} disabled={ingesting} variant="surface">
+                {ingesting ? 'Ingesting…' : 'Ingest now'}
+              </Button>
+              <Button
+                onClick={async () => {
+                  const since = lastIngestAt ? new Date(lastIngestAt).getTime() : undefined;
+                  setInjectingLatest(true);
+                  await ingest(since);
+                  setInjectingLatest(false);
+                }}
+                disabled={injectingLatest || ingesting}
+                variant="soft"
+              >
+                {injectingLatest ? 'Injecting latest…' : 'Fetch since last ingest'}
+              </Button>
+              {lastIngestAt && (
+                <Text size="2" color="gray">
+                  Last ingest at {new Date(lastIngestAt).toLocaleString()}
+                </Text>
+              )}
+            </Flex>
+          </Card>
+
+          <Card mb="4">
+            <Flex gap="3" wrap="wrap">
+              <Box>
+                <Text size="2" weight="medium">Source</Text>
+                <Select.Root value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Item value="all">All</Select.Item>
+                    <Select.Item value="craigslist">Craigslist</Select.Item>
+                    <Select.Item value="facebook">Facebook</Select.Item>
+                    <Select.Item value="streeteasy">StreetEasy</Select.Item>
+                    <Select.Item value="other">Other</Select.Item>
+                  </Select.Content>
+                </Select.Root>
+              </Box>
+              <Box grow="1">
+                <Text size="2" weight="medium">Search</Text>
+                <TextField.Root
+                  placeholder="keyword in title/description"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                />
+              </Box>
+            </Flex>
+          </Card>
+        </>
       )}
 
       {error && <Card><Text color="red">⚠️ {error}</Text></Card>}
