@@ -12,7 +12,8 @@ import {
   Select,
   Separator,
   Text,
-  TextField
+  TextField,
+  Badge
 } from '@radix-ui/themes';
 
 interface Listing {
@@ -274,16 +275,19 @@ export default function App() {
           </Flex>
           <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="3">
             {recent?.listings.map((l) => (
-              <Card key={l.id} variant="surface" size="2">
+              <Card key={l.id} variant="surface" size="2" style={{ position: 'relative' }}>
+                <Flex justify="end" align="center" style={{ position: 'absolute', top: 8, right: 8 }}>
+                  <Badge color="purple" variant="solid" size="1">
+                    {l.source}
+                  </Badge>
+                </Flex>
                 {l.thumbnailUrl && (
                   <Inset clip="padding-box">
                     <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 200 }} />
                   </Inset>
                 )}
                 <Flex justify="between" align="center" mt="2" mb="1">
-                  <Button size="1" variant="solid" color="purple">
-                    {l.source}
-                  </Button>
+                  <span />
                   <Text size="1" color="gray">{new Date(l.latestSeenAt).toLocaleTimeString()}</Text>
                 </Flex>
                 <Text size="2" style={{ display: 'block', marginTop: 4 }}>
