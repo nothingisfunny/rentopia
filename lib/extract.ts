@@ -1,5 +1,7 @@
 const URL_REGEX = /(https?:\/\/[^\s"'<>]+)/gi;
 const IMG_REGEX = /<img[^>]+src=["']([^"']+)["'][^>]*?(?:title=["']([^"']+)["'])?/i;
+const TD_BG_REGEX = /<td[^>]+background=["']([^"']+)["']/i;
+const STYLE_BG_REGEX = /background-image\s*:\s*url\(["']?([^"')]+)["']?\)/i;
 const ANCHOR_REGEX = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
 const PRICE_REGEX = /\$([\d,]+)/;
 const BR_TAG_REGEX = /<br\s*\/?>/gi;
@@ -23,19 +25,26 @@ export function extractUrls(textPlain: string, textHtml: string): string[] {
 }
 
 export function extractFirstImage(html: string): { src: string | null; title: string | null } {
-  const match = IMG_REGEX.exec(html);
-  if (!match) return { src: null, title: null };
-  let src = match[1];
-  const title = match[2] || null;
+  const imgMatch = IMG_REGEX.exec(html);
+  const bgMatch = TD_BG_REGEX.exec(html);
+  const styleBgMatch = STYLE_BG_REGEX.exec(html);
+  if (!imgMatch && !bgMatch && !styleBgMatch) return { src: null, title: null };
+
+  let src = imgMatch ? imgMatch[1] : bgMatch ? bgMatch[1] : styleBgMatch ? styleBgMatch[1] : null;
+  const title = imgMatch ? imgMatch[2] || null : null;
+
   // Gmail proxy URLs sometimes embed the real URL after a '#'
-  const hashIdx = src.indexOf('#');
-  if (hashIdx !== -1) {
+  const hashIdx = src?.indexOf('#') ?? -1;
+  if (hashIdx !== -1 && src) {
     const candidate = src.slice(hashIdx + 1);
     if (candidate.startsWith('http')) src = candidate;
   }
   // Prefer raw craigslist image if present in the string
-  const clMatch = src.match(/(https?:\/\/images\.craigslist\.org\/[^\s"']+)/);
+  const clMatch = src?.match(/(https?:\/\/images\.craigslist\.org\/[^\s"']+)/);
   if (clMatch) src = clMatch[1];
+  // Prefer Zillow photos if present in the string
+  const ziMatch = src?.match(/(https?:\/\/photos\.zillowstatic\.com\/[^\s"']+)/);
+  if (ziMatch) src = ziMatch[1];
   return { src, title };
 }
 
