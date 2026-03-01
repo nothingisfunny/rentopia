@@ -158,12 +158,14 @@ export default function App() {
         <Card size="3" style={{ maxWidth: 520, margin: '40px auto' }}>
           <Heading size="4" mb="3">Enter access password</Heading>
           <Flex gap="3" align="center">
-            <TextField.Root
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <TextField.Root>
+              <TextField.Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </TextField.Root>
             <Button
               onClick={() => {
                 localStorage.setItem('appPassword', password);
@@ -273,25 +275,23 @@ export default function App() {
           <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="3">
             {recent?.listings.map((l) => (
               <Card key={l.id} variant="surface" size="2">
-                <Flex justify="between" align="center" mb="1">
-                  <Text size="1" weight="medium">{l.source}</Text>
-                  <Text size="1" color="gray">{new Date(l.latestSeenAt).toLocaleTimeString()}</Text>
-                </Flex>
                 {l.thumbnailUrl && (
-                  <Inset clip="padding-box" mb="2">
-                    <a href={l.url} target="_blank" rel="noreferrer">
-                      <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 180 }} />
-                    </a>
+                  <Inset clip="padding-box">
+                    <img src={l.thumbnailUrl} alt={l.title || 'listing photo'} style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 200 }} />
                   </Inset>
                 )}
-                <Text as="a" href={l.url} target="_blank" rel="noreferrer" weight="bold" size="2" style={{ display: 'block' }}>
-                  {l.price ? `$${l.price.toLocaleString()} - ` : ''}{l.title || l.url}
+                <Flex justify="between" align="center" mt="2" mb="1">
+                  <Button size="1" variant="solid" color="purple">
+                    {l.source}
+                  </Button>
+                  <Text size="1" color="gray">{new Date(l.latestSeenAt).toLocaleTimeString()}</Text>
+                </Flex>
+                <Text size="2" style={{ display: 'block', marginTop: 4 }}>
+                  {l.description || l.title || l.url}
                 </Text>
-                {l.description && (
-                  <Text size="1" color="gray" style={{ display: 'block', marginTop: 4 }}>
-                    {l.description}
-                  </Text>
-                )}
+                <Button asChild variant="soft" size="2" mt="2">
+                  <a href={l.url} target="_blank" rel="noreferrer">View listing</a>
+                </Button>
               </Card>
             )) || <Text>No listings yet.</Text>}
           </Grid>
